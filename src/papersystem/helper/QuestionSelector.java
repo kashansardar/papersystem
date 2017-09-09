@@ -27,6 +27,7 @@ import javax.swing.UIManager;
 /**
  *
  * @author Abbasi
+ * @author Kashan
  */
 public class QuestionSelector implements ActionListener {
 
@@ -58,7 +59,7 @@ public class QuestionSelector implements ActionListener {
         selector.questionID = questionID;
         selector.questionRowNumber = questionRowNumber;
         selector.chapters = context.parent.chapters;
-        selector.addedQuestionIDs = context.parent.addedQuestionIDs;
+        selector.addedQuestionIDs = PaperPrinter.addedQuestionIDs;
         context.editFrame.setEnabled(false);
         selector.classx = context.classx;
 
@@ -135,7 +136,7 @@ public class QuestionSelector implements ActionListener {
 
         generateQuestionsContainer();
         JScrollPane sp = new JScrollPane(questionsContainer);
-        sp.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        sp.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);        
         frame.add(sp);
 
         //f.add(new JLabel("ASD3"));

@@ -26,6 +26,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.UIManager;
@@ -34,6 +35,7 @@ import papersystem.MainScreen;
 /**
  *
  * @author Abbasi
+ * @author Kashan
  */
 public class PaperEditor implements ActionListener {
 
@@ -130,7 +132,24 @@ public class PaperEditor implements ActionListener {
                 parent.saveAnswerPaper();
             }
         });
+        
+        /*
+            Sync Button Added 
+        */
+        topPanel.add(Box.createRigidArea(new Dimension(5, 0)));
+        JButton syncButton = new JButton("Sync");
+        topPanel.add(syncButton);
+        syncButton.addActionListener(new ActionListener() {
 
+            @Override
+            public void actionPerformed(ActionEvent e) {
+              parent.shuffleQuestions();
+              //parent.shuffle(1,6);
+              f.dispose();
+            }
+        });
+        
+        
         f.add(topPanel);
 
         //empty space on below top panel buttons...

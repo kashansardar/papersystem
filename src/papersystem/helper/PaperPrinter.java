@@ -20,7 +20,9 @@ import java.math.BigInteger;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
@@ -60,6 +62,7 @@ import papersystem.MainScreen;
 /**
  *
  * @author Abbasi
+ * @author Kashan
  */
 class FourFields {
 
@@ -106,11 +109,11 @@ public class PaperPrinter {
     //contains the chapters that are included in paper..
     ArrayList<String> chapters = null;
     //this list holds the question ids of Questions already added in printList...
-    ArrayList<String> addedQuestionIDs = null;
+    static ArrayList<String> addedQuestionIDs = new ArrayList<>();
     //Generate Question adds to this list.. it is then edited by user and printed ..
-    ArrayList<FourFields> printList = null;
+    static ArrayList<FourFields> printList = new ArrayList<>();
     //Generate Answer adds to this list.. it is then edited by user and printed ..
-    ArrayList<FourFields> answerList = null;
+    static ArrayList<FourFields> answerList = new ArrayList<>();
     //this variable acts as index to navigate addedQuestionIDs in generateAnswerPaper...
     int indexForGenerateAns = 0;
     String totalMarks = "0";
@@ -119,11 +122,14 @@ public class PaperPrinter {
     JDialog loading;
     //this holds lists of all question ids... in each list sorted by qtype recieved...
     private ArrayList<ArrayList<Integer>> listOfQuestionTypes_Custom;
-
+    
+    PaperPrinter current = null; // this piece of code is very important
+    String patternTypes = null;
+    
     //public method for printing... display edit menu..
     public void print(ArrayList<String> chapters, String paperName, String date, String time,
             String Instructions, String classx, String subject, int patternID, String board, MainScreen parent) {
-
+        
         parent.setEnabled(false);
         //setupLoader(parent);
         this.chapters = chapters;
@@ -136,11 +142,17 @@ public class PaperPrinter {
         this.board = board;
         this.subjectID = DBManager.getInstance().findSubjectID(subject, classx, board);
         this.totalTime = time;
-
-        addedQuestionIDs = new ArrayList<>();
-        printList = new ArrayList<>();
-        answerList = new ArrayList<>();
-
+        this.current = this; //set the instance that invokes this method to the current instance of the class
+        this.patternTypes = DBManager.getInstance().getPatternTypes(patternID);
+        
+        // clear previous data in the lists since the lists are static for all instances.
+        printList.clear();
+        addedQuestionIDs.clear();
+        answerList.clear();
+        //addedQuestionIDs = new ArrayList<>();
+        //printList = new ArrayList<>();
+        //answerList = new ArrayList<>();
+        
         //TODO Get paper pattern 
         DBManager dm = DBManager.getInstance();
         String patternTypes = dm.getPatternTypes(patternID);
@@ -156,7 +168,7 @@ public class PaperPrinter {
         printLogPrintList();
         PaperEditor.generateEditMenu(this, printList, answerList);
     }
-
+    
     //public method for printing Custom Pattern... display edit menu..
     public void print_Custom(ArrayList<String> chapters, String paperName, String date, String time,
             String Instructions, String classx, String subject, int patternID, String board, MainScreen parent,
@@ -175,10 +187,15 @@ public class PaperPrinter {
         this.subjectID = DBManager.getInstance().findSubjectID(subject, classx, board);
         this.totalTime = time;
         this.listOfQuestionTypes_Custom = listOfQuestionTypes;
-
-        addedQuestionIDs = new ArrayList<>();
-        printList = new ArrayList<>();
-        answerList = new ArrayList<>();
+        this.current = this; //set the instance that invokes this method to the current instance of the class
+        this.patternTypes = DBManager.getInstance().getPatternTypes(patternID);
+        // clear previous data in the lists since the lists are static for all instances.
+        printList.clear();
+        addedQuestionIDs.clear();
+        answerList.clear();
+        //addedQuestionIDs = new ArrayList<>();
+        //printList = new ArrayList<>();
+        //answerList = new ArrayList<>();
 
         //TODO Get paper pattern 
         DBManager dm = DBManager.getInstance();
@@ -1353,5 +1370,112 @@ public class PaperPrinter {
         }
         return document;
     }
+    
+    /**
+    * This methods identifies the questions in the printList and shuffles them.    
+    */
+        public void shuffleQuestions(){
+            
+            //PaperPrinter ref = new PaperPrinter();
+            int index = -1;
+            int startIndex = 0;
+            int endIndex = 0;
+            boolean isQType = false;
+            int qCount = 0;
+            int temp = 0;
+            
+            // in the end of the paper there is no questionType , so adding this.
+            printList.add(new FourFields("","","","THE END",false,false));
+            
+            for(FourFields ff : printList){
+                index++;
+                startIndex = temp;
+                if(ff.f4.length() > 0 || ff.heading || ff.f3.equals("OR")){
+                    temp = index+1;
+                    System.out.println("startIndex: "+startIndex);
+                    isQType = true;
+                }
+                if(ff.question){
+                    isQType = false;
+                    qCount++;
+                    System.out.println("qcount: "+qCount);
+                    continue;
+                }
+                if(isQType && qCount > 0){
+                    endIndex = index;
+                    System.out.println("---- \nendIndex: "+endIndex);
+                    current.shuffle(startIndex, endIndex);
+                }
+            }
+            qIDIndex = 0;
+            printList.remove(printList.size()-1);
+            // Refresh the anwserList with respect to new shuffled printList
+            answerList.clear();
+            questionNumber = 1;
+            questionNumberPrinted = 1;
+            indexForGenerateAns = 0;
+            generateAnswers(patternTypes);
+            // calls the PaperEditor Screen
+            PaperEditor.generateEditMenu(current, printList, answerList);
+        }
+    
+    /**
+    *  The method shuffles the questions in the printList and rearrange the addedQuestionIDs list with respect to the shuffle.
+    * @param startIndex takes the starting index
+    * @param endIndex takes the ending index
+    * @result It Shuffles all the elements in the given index range of the printList.
+    */
+        static int qIDIndex = 0; // remember to intialize this 0 after complete shuffle
+        public void shuffle(int startIndex , int endIndex){
+          
+            
+            ArrayList<FourFields> tempQShuffle = new ArrayList<>();
+            ArrayList<String> tempQuestionIDs = new ArrayList<>();
+            
+            
+            //Get specific question from the printlist and add them into tempQShuffe list.
+            for(int i = startIndex ; i < endIndex ; i++){               
+                
+                if(printList.get(i).question){
+                    System.out.println("Index:"+i+" ->"+printList.get(i).f3);
+                    tempQShuffle.add(printList.get(i));
+                }
+            }
+            // add corresponding question ids for the questions into the tempQuesitonID list
+            for(int i = qIDIndex ; i < tempQShuffle.size() + qIDIndex; i++){
+                tempQuestionIDs.add(addedQuestionIDs.get(i));
+            }
+            
+            
+            //Shuffle tempQShuffle list and addedQuestionIDs list in similar fashion
+            long seed = System.nanoTime();
+            Collections.shuffle(tempQShuffle, new Random(seed));
+            Collections.shuffle(tempQuestionIDs, new Random(seed));
+            // Formalize the sequence of the roman numerals after shuffle
+            int j = 0;
+            for(FourFields ff : tempQShuffle){
+                ff.f2 = IntegerToRomanNumeral(j+1);
+                j++;
+            }
+            // Add the shuffled qids into the addedQuestionIDs list
+            int in = 0; // index to iterate tempQID list
+            for(int i = qIDIndex ; i < tempQShuffle.size() + qIDIndex; i++){
+                addedQuestionIDs.set(i,tempQuestionIDs.get(in));
+                in++;
+            }
+            qIDIndex += tempQShuffle.size();
+            // replace questions of printList with tempQShuffle questions 
+            in = 0;
+            for(int i = startIndex ; i < endIndex ; i++){               
+                printList.set(i, tempQShuffle.get(in));
+                in++;
+            }
+            
+            
+            
+            System.out.println(printList.size()-1);
+            System.out.println("Kashan --- Length Check \n"+tempQShuffle.size()+"="+tempQuestionIDs.size()+"=QID "+addedQuestionIDs.size());
+            //PaperEditor.generateEditMenu(current, printList, answerList);
+        }
 
 }
